@@ -13,7 +13,7 @@ export const getusers = async (req:Request,res:Response) => {
 export const registeruser = async (req:Request,res:Response) => {
   try{
    const {name,email,password} = req.body;
-   const getuserdata = await pool.query(`SELECT * FROM users WHERE email = $1`,[email]);
+   const getuserdata = await pool.query(`SELECT * FROM users WHERE email = $1 AND password = $2`,[email,password]);
    if(getuserdata.rowCount){
     res.status(409).json({message:"Email already exists."});
    }else{
