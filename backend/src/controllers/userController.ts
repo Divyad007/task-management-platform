@@ -12,14 +12,20 @@ export const getusers = async (req:Request,res:Response) => {
 
 export const registeruser = async (req:Request,res:Response) => {
   try{
-    const {name,email,password} = req.body;
+   const {name,email,password} = req.body;
+   const getuserdata = await pool.query(`SELECT * FROM users WHERE email = $1`,[email]);
+   if(getuserdata.rowCount){
+    res.status(409).json({message:"Email already exists."});
+   }else{
    const result = await pool.query(`INSERT INTO users (name,email,password) values($1,$2,$3)`,[name,email,password]);
    if(result.rowCount){
     res.status(201).json({message:"Added user successfully."});
    }
+  }
   }catch(error){
     res.status(500).json({
-      message : "server error"
+      message : "server error",
+      err : error
     });
   }
 }
