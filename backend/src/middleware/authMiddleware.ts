@@ -8,6 +8,7 @@ export const verifytoken = (req:Request,res:Response,next:NextFunction)=>{
     }
     try{
      const verified = jwt.verify(token,"secretkey");
+     (req as any).user = verified;
      next();
     }catch(error){
         return res.status(401).json({message:"Invalid token."});
