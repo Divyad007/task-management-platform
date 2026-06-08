@@ -1,3 +1,4 @@
+import { off } from "node:cluster";
 import pool from "../config/db";
 import { Request, Response } from "express";
 
@@ -24,9 +25,27 @@ export const tasks = async (req: Request, res: Response) => {
 export const getuserTasks = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id;
-    const result = await pool.query(`SELECT * FROM tasks where user_id = $1`, [
-      userId,
-    ]);
+    const pageNum = Number(req.query.page) || 1;
+    const limitNum = Number(req.query.limit) || 10;
+    const offset = (pageNum - 1) * limitNum;
+    const { title } = req.query;
+
+    let queryarr = [userId];
+    let cond = "";
+    if (title) {
+      cond += ` AND title ILIKE $2`;
+      queryarr.push(`%${title}%`);
+    }
+    cond += ` LIMIT $${queryarr.length + 1}`;
+    queryarr.push(limitNum);
+
+    cond += ` OFFSET $${queryarr.length + 1}`;
+    queryarr.push(offset);
+    // cond += ` LIMIT ${limitNum} OFFSET ${offset}`;
+    const result = await pool.query(
+      `SELECT * FROM tasks where user_id = $1` + cond,
+      queryarr,
+    );
     return res.status(200).json({
       message: "Tasks fetched successfully",
       data: result.rows,
@@ -68,7 +87,7 @@ export const getTask = async (req: Request, res: Response) => {
 export const updateTask = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id;
-    const { taskId} = req.params;
+    const { taskId } = req.params;
     const { title, description, status, points } = req.body;
     const result = await pool.query(
       `SELECT * FROM tasks where user_id = $1 AND id = $2`,
@@ -100,7 +119,7 @@ export const updateTask = async (req: Request, res: Response) => {
 export const deleteTask = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id;
-    const { taskId} = req.params;
+    const { taskId } = req.params;
     const result = await pool.query(
       `SELECT * FROM tasks where user_id = $1 AND id = $2`,
       [userId, taskId],
