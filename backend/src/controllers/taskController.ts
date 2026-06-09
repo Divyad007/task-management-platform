@@ -28,20 +28,27 @@ export const getuserTasks = async (req: Request, res: Response) => {
     const pageNum = Number(req.query.page) || 1;
     const limitNum = Number(req.query.limit) || 10;
     const offset = (pageNum - 1) * limitNum;
-    const { title } = req.query;
+    const { title, status, sort, order } = req.query;
+    const allowedSortFields = ["created_at", "updated_at", "points", "title"];
+    const sortfields = allowedSortFields.includes(sort as string) ? sort : 'created_at';
+    const sortorder = order === 'asc' ? 'ASC' : 'DESC';
 
     let queryarr = [userId];
     let cond = "";
     if (title) {
-      cond += ` AND title ILIKE $2`;
+      cond += ` AND title ILIKE $${queryarr.length + 1}`;
       queryarr.push(`%${title}%`);
     }
+    if (status) {
+      cond += ` AND status = $${queryarr.length + 1}`;
+      queryarr.push(status);
+    }
+    cond += ` ORDER BY ${sortfields} ${sortorder}`;
     cond += ` LIMIT $${queryarr.length + 1}`;
     queryarr.push(limitNum);
 
     cond += ` OFFSET $${queryarr.length + 1}`;
     queryarr.push(offset);
-    // cond += ` LIMIT ${limitNum} OFFSET ${offset}`;
     const result = await pool.query(
       `SELECT * FROM tasks where user_id = $1` + cond,
       queryarr,
@@ -49,6 +56,8 @@ export const getuserTasks = async (req: Request, res: Response) => {
     return res.status(200).json({
       message: "Tasks fetched successfully",
       data: result.rows,
+      limit:limitNum,
+      page:pageNum
     });
   } catch (error) {
     return res.status(500).json({
