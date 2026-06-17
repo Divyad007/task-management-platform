@@ -1,14 +1,19 @@
-import { off } from "node:cluster";
 import pool from "../config/db";
 import { Request, Response } from "express";
+import {TaskInput} from "../types/validations/task.types";
 
 export const tasks = async (req: Request, res: Response) => {
   try {
     const { title, description, points, status } = req.body;
+    const errors = validateTask(req.body);
+    if (errors.length > 0) {
+      return res.status(400).json({
+        errors,
+      });
+    }
     const userId = (req as any).user.id;
-    const result = await pool.query(
-      `
-    INSERT INTO tasks (user_id,title,description,points,status) values($1,$2,$3,$4,$5)`,
+    await pool.query(
+      `INSERT INTO tasks (user_id,title,description,points,status) values($1,$2,$3,$4,$5)`,
       [userId, title, description, points, status],
     );
     return res.status(201).json({
@@ -30,8 +35,10 @@ export const getuserTasks = async (req: Request, res: Response) => {
     const offset = (pageNum - 1) * limitNum;
     const { title, status, sort, order } = req.query;
     const allowedSortFields = ["created_at", "updated_at", "points", "title"];
-    const sortfields = allowedSortFields.includes(sort as string) ? sort : 'created_at';
-    const sortorder = order === 'asc' ? 'ASC' : 'DESC';
+    const sortfields = allowedSortFields.includes(sort as string)
+      ? sort
+      : "created_at";
+    const sortorder = order === "asc" ? "ASC" : "DESC";
 
     let queryarr = [userId];
     let cond = "";
@@ -56,8 +63,8 @@ export const getuserTasks = async (req: Request, res: Response) => {
     return res.status(200).json({
       message: "Tasks fetched successfully",
       data: result.rows,
-      limit:limitNum,
-      page:pageNum
+      limit: limitNum,
+      page: pageNum,
     });
   } catch (error) {
     return res.status(500).json({
@@ -70,7 +77,7 @@ export const getuserTasks = async (req: Request, res: Response) => {
 export const getTask = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id;
-    const { taskId } = req.query;
+    const { taskId } = req.params;
     const result = await pool.query(
       `SELECT * FROM tasks where user_id = $1 AND id = $2`,
       [userId, taskId],
@@ -98,6 +105,12 @@ export const updateTask = async (req: Request, res: Response) => {
     const userId = (req as any).user.id;
     const { taskId } = req.params;
     const { title, description, status, points } = req.body;
+    const errors = validateTask(req.body);
+    if (errors.length > 0) {
+      return res.status(400).json({
+        errors,
+      });
+    }
     const result = await pool.query(
       `SELECT * FROM tasks where user_id = $1 AND id = $2`,
       [userId, taskId],
@@ -154,4 +167,25 @@ export const deleteTask = async (req: Request, res: Response) => {
       err: error,
     });
   }
+};
+
+export const validateTask = (fields:TaskInput): string[] => {
+  const allowedstatus = ["completed", "in_progress", "pending"];
+  let errors: string[] = [];
+  if (!fields.title || !fields.title.trim()) {
+    errors.push("Please Enter Title.");
+  } else if (fields.title.length < 3) {
+    errors.push("Please Enter valid Title.");
+  }
+  if (fields.points === undefined || fields.points === null) {
+    errors.push("Please Enter Points.");
+  } else if (!Number.isInteger(fields.points) || fields.points <= 0) {
+    errors.push("Points should be numeric and greater than zero.");
+  }
+  if (!fields.status) {
+    errors.push("Please Enter status.");
+  } else if (fields.status && !allowedstatus.includes(fields.status)) {
+    errors.push("please Enter valid status.");
+  }
+  return errors;
 };
