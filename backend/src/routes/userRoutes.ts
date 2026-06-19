@@ -6,5 +6,5 @@ const route = express.Router();
 route.get("/users",verifytoken,getusers);
 //added register api
 route.post("/register", registeruser);
-route.get("/login", loginuser);
+route.post("/login", loginuser);
 export default route;
