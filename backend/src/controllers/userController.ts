@@ -14,25 +14,28 @@ export const getusers = async (req: Request, res: Response) => {
 
 export const registeruser = async (req: Request, res: Response) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password,confirmpwd } = req.body;
     const encryptpwd = await bcrypt.hash(password, 10);
+    if(password != confirmpwd){
+      return res.status(409).json({ message: "please Enter confirm password same as password." });
+    }
     const getuserdata = await pool.query(
       `SELECT * FROM users WHERE email = $1`,
       [email],
     );
     if (getuserdata.rowCount) {
-      res.status(409).json({ message: "Email already exists." });
+      return res.status(409).json({ message: "Email already exists." });
     } else {
       const result = await pool.query(
         `INSERT INTO users (name,email,password) values($1,$2,$3)`,
         [name, email, encryptpwd],
       );
       if (result.rowCount) {
-        res.status(201).json({ message: "Added user successfully." });
+        return res.status(201).json({ message: "Added user successfully." });
       }
     }
   } catch (error) {
-    res.status(500).json({
+   return res.status(500).json({
       message: "server error",
       err: error,
     });
